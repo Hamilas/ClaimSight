@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="620" viewBox="0 0 700 620" font-family="Inter, Arial, sans-serif">
+  <rect width="700" height="620" fill="#0a0f1a"/>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/>
+    </marker>
+  </defs>
+
+  <rect x="200" y="16" width="300" height="46" rx="8" fill="#111827" stroke="#30363d" stroke-width="1.5"/>
+  <text x="350" y="44" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">data/raw/ (CSV)</text>
+
+  <line x1="350" y1="62" x2="350" y2="94" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="450" y="82" fill="#64748b" font-size="9">PySpark + explicit schemas</text>
+
+  <rect x="140" y="96" width="420" height="60" rx="8" fill="#111827" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="350" y="120" text-anchor="middle" fill="#93c5fd" font-size="12" font-weight="700">data/bronze/</text>
+  <text x="350" y="140" text-anchor="middle" fill="#8b949e" font-size="10">Delta MERGE, record hashes, ingestion timestamps</text>
+
+  <line x1="350" y1="156" x2="350" y2="188" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="490" y="176" fill="#64748b" font-size="9">type casts + joins + rules</text>
+
+  <rect x="140" y="190" width="420" height="60" rx="8" fill="#111827" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="350" y="214" text-anchor="middle" fill="#93c5fd" font-size="12" font-weight="700">data/silver/</text>
+  <text x="350" y="234" text-anchor="middle" fill="#8b949e" font-size="10">member_claims (enriched) + claim_quality_metrics</text>
+
+  <line x1="350" y1="250" x2="350" y2="282" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="460" y="270" fill="#64748b" font-size="9">GROUP BY aggregations</text>
+
+  <rect x="140" y="284" width="420" height="60" rx="8" fill="#111827" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="350" y="308" text-anchor="middle" fill="#93c5fd" font-size="12" font-weight="700">data/gold/</text>
+  <text x="350" y="328" text-anchor="middle" fill="#8b949e" font-size="10">monthly_cost_by_plan_state + provider_specialty_summary</text>
+
+  <line x1="350" y1="344" x2="350" y2="376" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="200" y="378" width="300" height="46" rx="8" fill="#111827" stroke="#30363d" stroke-width="1.5"/>
+  <text x="350" y="406" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">Airflow DAG (daily 06:00 UTC)</text>
+
+  <rect x="40" y="452" width="620" height="150" rx="8" fill="none" stroke="#30363d" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="350" y="478" text-anchor="middle" fill="#64748b" font-size="10.5" font-weight="700">healthcare_medallion_pipeline</text>
+
+  <rect x="70" y="510" width="160" height="50" rx="8" fill="#161b22" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="150" y="540" text-anchor="middle" fill="#93c5fd" font-size="11" font-weight="700">bronze_ingestion</text>
+  <line x1="230" y1="535" x2="260" y2="535" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="262" y="510" width="180" height="50" rx="8" fill="#161b22" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="352" y="540" text-anchor="middle" fill="#93c5fd" font-size="11" font-weight="700">silver_transformations</text>
+  <line x1="442" y1="535" x2="472" y2="535" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="474" y="510" width="150" height="50" rx="8" fill="#161b22" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="549" y="540" text-anchor="middle" fill="#93c5fd" font-size="11" font-weight="700">gold_serving</text>
+
+  <text x="350" y="580" text-anchor="middle" fill="#8b949e" font-size="10">Quality gates: Great Expectations (77 checks). Fraud detection SQL runs post-gold.</text>
+</svg>

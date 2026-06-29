@@ -1,0 +1,207 @@
+{
+  "id": null,
+  "uid": "claimsight-pipeline",
+  "title": "ClaimSight — Pipeline Overview",
+  "tags": ["claimsight", "healthcare"],
+  "timezone": "browser",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Pipeline Records — Bronze",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#b45309" },
+          "unit": "short",
+          "thresholds": { "steps": [{ "value": 0, "color": "orange" }] }
+        }
+      },
+      "targets": [{
+        "expr": "pipeline_records_total{layer=\"bronze\"}",
+        "legendFormat": "Bronze Records"
+      }]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Pipeline Records — Silver",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#64748b" },
+          "unit": "short"
+        }
+      },
+      "targets": [{
+        "expr": "pipeline_records_total{layer=\"silver\"}",
+        "legendFormat": "Silver Records"
+      }]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Pipeline Records — Gold",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#ca8a04" },
+          "unit": "short"
+        }
+      },
+      "targets": [{
+        "expr": "pipeline_records_total{layer=\"gold\"}",
+        "legendFormat": "Gold Records"
+      }]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Quality Checks Passed",
+      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "value": 0, "color": "red" },
+              { "value": 30, "color": "yellow" },
+              { "value": 44, "color": "green" }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "quality_checks_passed",
+        "legendFormat": "Checks Passed"
+      }]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Fraud Flags",
+      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "value": 0, "color": "green" },
+              { "value": 50, "color": "yellow" },
+              { "value": 100, "color": "red" }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "fraud_flags_total",
+        "legendFormat": "Fraud Flags"
+      }]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Total API Requests",
+      "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "auto" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#3b82f6" },
+          "unit": "short"
+        }
+      },
+      "targets": [{
+        "expr": "sum(api_requests_total)",
+        "legendFormat": "Total Requests"
+      }]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "API Request Rate by Endpoint",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "reqps",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        }
+      },
+      "targets": [{
+        "expr": "rate(api_requests_total[1m])",
+        "legendFormat": "{{endpoint}}"
+      }]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Pipeline Stage Duration",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "s",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        }
+      },
+      "targets": [{
+        "expr": "pipeline_duration_seconds",
+        "legendFormat": "{{stage}}"
+      }]
+    },
+    {
+      "id": 9,
+      "type": "bargauge",
+      "title": "Records per Layer",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "orientation": "horizontal", "displayMode": "gradient", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "continuous-BlYlRd" },
+          "unit": "short",
+          "thresholds": { "steps": [{ "value": 0, "color": "blue" }] }
+        }
+      },
+      "targets": [{
+        "expr": "pipeline_records_total",
+        "legendFormat": "{{layer}}"
+      }]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "API Request Latency (p95)",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "s",
+          "custom": { "lineWidth": 2, "fillOpacity": 5 }
+        }
+      },
+      "targets": [{
+        "expr": "histogram_quantile(0.95, rate(api_request_duration_seconds_bucket[2m]))",
+        "legendFormat": "p95 latency"
+      }]
+    }
+  ]
+}

@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClaimSight: Healthcare Claims Pipeline</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0f1a;
+      --bg-card: #0f172a;
+      --bg-card2: #1e293b;
+      --border: rgba(51,65,85,0.5);
+      --accent: #3b82f6;
+      --accent2: #06b6d4;
+      --purple: #8b5cf6;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --text: #f1f5f9;
+      --muted: #64748b;
+      --muted2: #94a3b8;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    /* ── Top accent bar ── */
+    .topbar { height: 2px; background: #3b82f6; }
+
+    /* ── Header ── */
+    header {
+      background: rgba(10,15,26,0.97);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .logo-text { font-size: 1.15rem; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+    .logo-accent { color: var(--accent); }
+
+    .badge {
+      font-size: 0.6rem; font-weight: 700;
+      background: rgba(59,130,246,0.15);
+      border: 1px solid rgba(59,130,246,0.35);
+      color: #60a5fa;
+      border-radius: 4px;
+      padding: 2px 7px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .header-right { display: flex; align-items: center; gap: 1.5rem; }
+
+    .status-pill {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.3);
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 0.78rem; font-weight: 600; color: #34d399;
+    }
+
+    .pulse { width: 7px; height: 7px; border-radius: 50%; background: #10b981;
+      animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+
+    .header-link {
+      color: var(--muted); font-size: 0.8rem; text-decoration: none;
+      transition: color .2s;
+    }
+    .header-link:hover { color: var(--text); }
+
+    /* ── Main layout ── */
+    main { max-width: 1280px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    /* ── Section headings ── */
+    .sec {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted);
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 14px; margin-top: 2.5rem;
+    }
+    .sec::after { content:''; flex:1; height:1px; background:var(--border); }
+    .sec:first-child { margin-top: 0; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+    }
+
+    /* ── KPI row ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+      gap: 14px;
+    }
+
+    .kpi {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.25rem 1rem;
+      position: relative;
+      overflow: hidden;
+      transition: transform .15s;
+    }
+    .kpi:hover { transform: translateY(-2px); }
+    .kpi::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+    }
+    .kpi.blue::after   { background: var(--accent); }
+    .kpi.cyan::after   { background: var(--accent2); }
+    .kpi.green::after  { background: var(--green); }
+    .kpi.yellow::after { background: var(--yellow); }
+    .kpi.red::after    { background: var(--red); }
+
+    .kpi-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .05em; color: var(--muted); margin-bottom: 8px; }
+    .kpi-value { font-size: 2.2rem; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+    .kpi-sub { font-size: 0.72rem; color: var(--muted); margin-top: 5px; }
+
+    /* ── Sparkline ── */
+    .sparkline { display: flex; align-items: flex-end; gap: 3px; height: 26px; margin-top: 8px; }
+    .spark-bar { flex:1; border-radius: 2px; min-height: 3px; opacity: .7; }
+
+    /* ── Pipeline flow ── */
+    .pipeline-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 1.5rem 1rem;
+    }
+
+    .pipe-stage {
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      text-align: center;
+      min-width: 130px;
+      transition: all .2s;
+      cursor: default;
+    }
+    .pipe-stage:hover { border-color: var(--accent); box-shadow: 0 0 18px rgba(59,130,246,0.15); }
+    .pipe-stage .icon { font-size: 1.4rem; margin-bottom: 6px; }
+    .pipe-stage .name { font-weight: 600; font-size: 0.85rem; }
+    .pipe-stage .sub  { font-size: 0.7rem; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+
+    .pipe-arrow { color: var(--muted); font-size: 1.3rem; padding: 0 2px; }
+
+    .pipe-legend {
+      display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap;
+      margin-top: 12px; font-size: 0.75rem; color: var(--muted);
+    }
+    .pipe-legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+    /* ── Two-col layout ── */
+    .two-col {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px,1fr));
+      gap: 16px;
+    }
+
+    /* ── Bar chart ── */
+    .bar-chart { display: flex; align-items: flex-end; gap: 5px; height: 140px; }
+    .bar-wrap  { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; height:100%; justify-content:flex-end; }
+    .bar-stack { width: 100%; display: flex; flex-direction: column-reverse; gap: 1px; }
+    .bar       { width: 100%; border-radius: 2px 2px 0 0; transition: height .9s cubic-bezier(.4,0,.2,1); }
+    .bar-lbl   { font-size: 0.58rem; color: var(--muted); }
+
+    /* ── Progress bar ── */
+    .prog-row  { margin-bottom: 14px; }
+    .prog-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+    .prog-name { font-size: 0.82rem; font-weight: 500; }
+    .prog-meta { font-size: 0.72rem; color: var(--muted); }
+    .prog-track { height: 7px; background: #1e293b; border-radius: 999px; overflow: hidden; }
+    .prog-fill  { height: 100%; border-radius: 999px; transition: width 1.4s cubic-bezier(.4,0,.2,1); }
+
+    /* ── Fraud simulator ── */
+    .sim-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media(max-width:640px) { .sim-grid { grid-template-columns: 1fr; } }
+
+    .form-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .05em; color: var(--muted); margin-bottom: 6px; }
+
+    select, input[type=number] {
+      width: 100%;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(51,65,85,0.7);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      transition: border .2s;
+    }
+    select:focus, input:focus { border-color: var(--accent); }
+
+    .sim-btn {
+      width: 100%;
+      background: #3b82f6;
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 12px;
+      cursor: pointer;
+      margin-top: 4px;
+      transition: opacity .2s;
+      font-family: inherit;
+    }
+    .sim-btn:hover { opacity: .9; }
+    .sim-btn:active { opacity: .8; }
+
+    .sim-result {
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      min-height: 180px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .sim-placeholder { color: var(--muted); font-size: 0.82rem; text-align: center; }
+
+    .risk-ring {
+      width: 96px; height: 96px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column;
+      margin-bottom: 10px;
+      font-size: 1.6rem;
+      font-weight: 800;
+      line-height: 1;
+      border: 4px solid transparent;
+    }
+    .risk-ring.high   { border-color: #ef4444; color: #fca5a5; background: rgba(239,68,68,.1); }
+    .risk-ring.medium { border-color: #f59e0b; color: #fde68a; background: rgba(245,158,11,.1); }
+    .risk-ring.low    { border-color: #10b981; color: #6ee7b7; background: rgba(16,185,129,.1); }
+    .risk-ring .risk-sub { font-size: 0.6rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; margin-top: 2px; }
+
+    /* ── Quality table ── */
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--muted);
+      padding: 8px 12px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 12px; font-size: 0.82rem;
+      border-bottom: 1px solid rgba(51,65,85,0.25);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+
+    .layer-pill {
+      display: inline-block;
+      font-size: 0.65rem; font-weight: 700;
+      padding: 2px 8px; border-radius: 4px;
+    }
+    .layer-bronze { background: rgba(180,83,9,.2); color: #fbbf24; }
+    .layer-silver { background: rgba(148,163,184,.1); color: #cbd5e1; }
+    .layer-gold   { background: rgba(234,179,8,.1); color: #fde047; }
+
+    .check-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 0.72rem; font-weight: 600;
+      padding: 2px 9px; border-radius: 999px;
+    }
+    .check-ok { background: rgba(16,185,129,.15); color: #34d399; }
+
+    /* ── Run log ── */
+    .run-status-ok   { color: #34d399; font-weight: 600; }
+    .run-layer { display: inline-block; font-size:.7rem; font-weight:700; padding:2px 7px; border-radius:4px;
+      background:rgba(59,130,246,.15); color:#60a5fa; }
+
+    /* ── Services panel ── */
+    .services { display: flex; flex-direction: column; gap: 10px; }
+    .svc-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 14px;
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .svc-name { display: flex; align-items: center; gap: 8px; font-size: .84rem; font-weight: 500; }
+    .svc-dot  { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    .svc-url  { font-size: .74rem; color: var(--muted); font-family: monospace; }
+
+    /* ── Plan breakdown bars ── */
+    .plan-bar-row { margin-bottom: 10px; }
+    .plan-bar-head { display: flex; justify-content: space-between; font-size: .8rem; margin-bottom: 4px; }
+    .plan-bar-track { height: 8px; background: #1e293b; border-radius: 999px; overflow: hidden; }
+    .plan-bar-fill  { height: 100%; border-radius: 999px; }
+
+    /* ── Tech grid ── */
+    .tech-grid {
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .tech-tag {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: .82rem; font-weight: 500;
+      transition: border-color .2s;
+    }
+    .tech-tag:hover { border-color: rgba(59,130,246,.5); }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 20px 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 3rem;
+    }
+    .foot-logo { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: .9rem; }
+    .foot-links { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+    .foot-link { color: var(--muted); font-size: .8rem; text-decoration: none; transition: color .2s; }
+    .foot-link:hover { color: var(--text); }
+
+    /* ── Animations ── */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    .fade { animation: fadeUp .5s ease both; }
+    .d1 { animation-delay: .05s; }
+    .d2 { animation-delay: .10s; }
+    .d3 { animation-delay: .15s; }
+    .d4 { animation-delay: .20s; }
+    .d5 { animation-delay: .25s; }
+  </style>
+</head>
+<body>
+
+<div class="topbar"></div>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="logo">
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <rect width="32" height="32" rx="8" fill="#1e40af"/>
+      <polyline points="3,16 7,16 9,10 12,22 14.5,14 17,18 19,12 21,16 29,16"
+        stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <circle cx="19" cy="12" r="2.5" fill="#38bdf8"/>
+    </svg>
+    <span class="logo-text">Claim<span class="logo-accent">Sight</span></span>
+    <span class="badge">Big Data</span>
+  </div>
+
+  <div class="header-right">
+    <div class="status-pill">
+      <span class="pulse"></span>
+      Pipeline Active
+    </div>
+    <span style="color:var(--muted);font-size:.75rem;">Last run: 2026-06-29 15:38 UTC</span>
+    <a href="https://github.com/Hamilas/ClaimSight" target="_blank" class="header-link">GitHub</a>
+    <a href="https://www.linkedin.com/in/lassoued-rayen/" target="_blank" class="header-link">LinkedIn</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── KPI CARDS ── -->
+  <div class="sec">Pipeline Metrics</div>
+  <div class="kpi-grid fade d1">
+
+    <div class="kpi blue">
+      <div class="kpi-label">Claims Processed</div>
+      <div class="kpi-value" style="color:#60a5fa;">
+        <span class="counter" data-target="5000" data-fmt="comma">0</span>
+      </div>
+      <div class="kpi-sub">5,034 after Gold aggregation</div>
+      <div class="sparkline" id="sp1"></div>
+    </div>
+
+    <div class="kpi cyan">
+      <div class="kpi-label">Total Paid Amount</div>
+      <div class="kpi-value" style="color:#22d3ee;">$8.4M</div>
+      <div class="kpi-sub">$9.65M billed, 87.6% approval rate</div>
+      <div class="sparkline" id="sp2"></div>
+    </div>
+
+    <div class="kpi green">
+      <div class="kpi-label">Quality Score</div>
+      <div class="kpi-value" style="color:#34d399;">77<span style="font-size:1.1rem;font-weight:400;color:var(--muted)">/77</span></div>
+      <div class="kpi-sub">100% pass, 7 datasets, 3 layers</div>
+      <div class="sparkline" id="sp3"></div>
+    </div>
+
+    <div class="kpi red">
+      <div class="kpi-label">Fraud Flags</div>
+      <div class="kpi-value" style="color:#f87171;">
+        <span class="counter" data-target="87" data-fmt="comma">0</span>
+      </div>
+      <div class="kpi-sub">1.74% of claims, 3 detection patterns</div>
+      <div class="sparkline" id="sp4"></div>
+    </div>
+
+    <div class="kpi yellow">
+      <div class="kpi-label">Pipeline Duration</div>
+      <div class="kpi-value" style="color:#fbbf24;">2.3<span style="font-size:1.1rem;font-weight:400;color:var(--muted)">m</span></div>
+      <div class="kpi-sub">Bronze 39s · Silver 51s · Gold 50s</div>
+      <div class="sparkline" id="sp5"></div>
+    </div>
+
+  </div>
+
+  <!-- ── PIPELINE FLOW ── -->
+  <div class="sec fade d2">Medallion Architecture</div>
+  <div class="card fade d2">
+    <div class="pipeline-flow">
+
+      <div class="pipe-stage" style="border-color:#475569;">
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v6h6"/></svg></div>
+        <div class="name">Raw CSV</div>
+        <div class="sub">claims.csv<br/>members.csv<br/>providers.csv</div>
+      </div>
+
+      <div class="pipe-arrow">→</div>
+
+      <div class="pipe-stage" style="border-color:#b45309;background:rgba(180,83,9,.08);">
+        <div class="icon" style="font-size:1.2rem; font-weight:900; color:#fbbf24;">B</div>
+        <div class="name" style="color:#fbbf24;">Bronze</div>
+        <div class="sub">Delta MERGE<br/>SHA-256 hash<br/>Ingestion tags</div>
+        <div style="margin-top:7px;font-size:.68rem;color:#f59e0b;font-weight:600;">39.1s · 5K records</div>
+      </div>
+
+      <div class="pipe-arrow">→</div>
+
+      <div class="pipe-stage" style="border-color:#475569;background:rgba(148,163,184,.06);">
+        <div class="icon" style="font-size:1.2rem; font-weight:900; color:#cbd5e1;">S</div>
+        <div class="name" style="color:#cbd5e1;">Silver</div>
+        <div class="sub">Type casts<br/>JOIN enrichment<br/>Business rules</div>
+        <div style="margin-top:7px;font-size:.68rem;color:#94a3b8;font-weight:600;">51.3s · 5K records</div>
+      </div>
+
+      <div class="pipe-arrow">→</div>
+
+      <div class="pipe-stage" style="border-color:#854d0e;background:rgba(234,179,8,.06);">
+        <div class="icon" style="font-size:1.2rem; font-weight:900; color:#fde047;">G</div>
+        <div class="name" style="color:#fde047;">Gold</div>
+        <div class="sub">Cost by plan/state<br/>Provider KPIs<br/>Aggregates</div>
+        <div style="margin-top:7px;font-size:.68rem;color:#eab308;font-weight:600;">50.2s · 5,034 records</div>
+      </div>
+
+      <div class="pipe-arrow">→</div>
+
+      <div class="pipe-stage" style="border-color:#1d4ed8;background:rgba(59,130,246,.08);">
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+        <div class="name" style="color:#60a5fa;">Analytics</div>
+        <div class="sub">FastAPI + DuckDB<br/>React dashboard<br/>Fraud detection</div>
+      </div>
+
+    </div>
+    <div class="pipe-legend">
+      <span><span class="pipe-legend-dot" style="background:#10b981;"></span>&nbsp;Airflow DAG · 06:00 UTC daily</span>
+      <span><span class="pipe-legend-dot" style="background:#3b82f6;"></span>&nbsp;PySpark 3.5 + Delta Lake 3.2</span>
+      <span><span class="pipe-legend-dot" style="background:#f59e0b;"></span>&nbsp;Great Expectations · 77 quality checks</span>
+      <span><span class="pipe-legend-dot" style="background:#ef4444;"></span>&nbsp;DuckDB fraud detection SQL</span>
+    </div>
+  </div>
+
+  <!-- ── FRAUD SIMULATOR + SERVICES ── -->
+  <div class="sec fade d3">Fraud Detection Simulator</div>
+  <div class="two-col fade d3">
+
+    <div class="card">
+      <p style="color:var(--muted);font-size:.82rem;margin-bottom:1.2rem;">
+        Three SQL window-function patterns detect fraudulent claims in the silver layer.
+        Simulate a claim and see which pattern would flag it.
+      </p>
+
+      <div class="sim-grid">
+        <div>
+          <div class="form-label">Fraud Pattern</div>
+          <select id="simPattern">
+            <option value="duplicate">Duplicate Claim (7-day window)</option>
+            <option value="highvol">High-Volume Provider Day</option>
+            <option value="anomaly">Amount Anomaly (3σ)</option>
+          </select>
+        </div>
+        <div>
+          <div class="form-label">Claim Amount ($)</div>
+          <input type="number" id="simAmount" value="4800" min="1" max="999999"/>
+        </div>
+        <div>
+          <div class="form-label">Claims this Window</div>
+          <input type="number" id="simWindow" value="3" min="1" max="50"/>
+        </div>
+        <div>
+          <div class="form-label">Provider Specialty</div>
+          <select id="simSpecialty">
+            <option value="cardiology">Cardiology</option>
+            <option value="oncology">Oncology</option>
+            <option value="general">General Practice</option>
+            <option value="orthopedics">Orthopedics</option>
+            <option value="radiology">Radiology</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="sim-btn" onclick="runSimulation()">
+        ▶ Run Detection
+      </button>
+    </div>
+
+    <div class="sim-result" id="simResult">
+      <div class="sim-placeholder">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style="margin-bottom:10px;opacity:.3;">
+          <circle cx="20" cy="20" r="18" stroke="#64748b" stroke-width="2"/>
+          <polyline points="8,20 12,20 14,14 17,26 19.5,18 22,22 24,16 26,20 32,20"
+            stroke="#64748b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+        Configure a claim and click<br/>Run Detection
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── ANALYTICS SPLIT: Bar Chart + Plan Breakdown ── -->
+  <div class="sec fade d3">Claims Analytics</div>
+  <div class="two-col fade d3">
+
+    <div class="card">
+      <div style="font-size:.88rem;font-weight:600;margin-bottom:16px;color:var(--muted2);">
+        Monthly Claims Volume (2026)
+      </div>
+      <div class="bar-chart" id="barChart"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;">
+        <span id="barLabels" style="display:flex;justify-content:space-between;width:100%;font-size:.58rem;color:var(--muted);"></span>
+      </div>
+      <div style="display:flex;gap:14px;margin-top:12px;flex-wrap:wrap;">
+        <span style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--muted);">
+          <span style="width:8px;height:8px;background:#3b82f6;border-radius:2px;display:inline-block;"></span>Paid
+        </span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--muted);">
+          <span style="width:8px;height:8px;background:#ef4444;border-radius:2px;display:inline-block;"></span>Denied
+        </span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--muted);">
+          <span style="width:8px;height:8px;background:#f59e0b;border-radius:2px;display:inline-block;"></span>Pending
+        </span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:.88rem;font-weight:600;margin-bottom:16px;color:var(--muted2);">
+        Billed Amount by Plan
+      </div>
+
+      <div class="plan-bar-row">
+        <div class="plan-bar-head">
+          <span>Bronze Plan</span>
+          <span style="color:#60a5fa;font-weight:600;">28% · $2.70M</span>
+        </div>
+        <div class="plan-bar-track">
+          <div class="plan-bar-fill" style="width:28%;background:#3b82f6;"></div>
+        </div>
+      </div>
+
+      <div class="plan-bar-row">
+        <div class="plan-bar-head">
+          <span>Silver Plan</span>
+          <span style="color:#94a3b8;font-weight:600;">27% · $2.60M</span>
+        </div>
+        <div class="plan-bar-track">
+          <div class="plan-bar-fill" style="width:27%;background:#64748b;"></div>
+        </div>
+      </div>
+
+      <div class="plan-bar-row">
+        <div class="plan-bar-head">
+          <span>Gold Plan</span>
+          <span style="color:#fde047;font-weight:600;">26% · $2.51M</span>
+        </div>
+        <div class="plan-bar-track">
+          <div class="plan-bar-fill" style="width:26%;background:#ca8a04;"></div>
+        </div>
+      </div>
+
+      <div class="plan-bar-row">
+        <div class="plan-bar-head">
+          <span>Platinum Plan</span>
+          <span style="color:#c084fc;font-weight:600;">20% · $1.93M</span>
+        </div>
+        <div class="plan-bar-track">
+          <div class="plan-bar-fill" style="width:20%;background:#7c3aed;"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted2);">
+          <span>Total Billed</span><span style="font-weight:700;color:var(--text);">$9.65M</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted2);margin-top:6px;">
+          <span>Total Paid</span><span style="font-weight:700;color:#34d399;">$8.45M</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted2);margin-top:6px;">
+          <span>Approval Rate</span><span style="font-weight:700;color:#60a5fa;">87.6%</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── QUALITY CHECKS + PIPELINE HEALTH ── -->
+  <div class="sec fade d4">Data Quality &amp; Stage Performance</div>
+  <div class="two-col fade d4">
+
+    <div class="card" style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Layer</th>
+            <th>Dataset</th>
+            <th>Checks</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody id="qualityTable"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div id="stageHealth"></div>
+
+      <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px;">
+          Running Services
+        </div>
+        <div class="services" id="services"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── RECENT RUNS ── -->
+  <div class="sec fade d4">Recent Pipeline Runs</div>
+  <div class="card fade d4" style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Run ID</th>
+          <th>Timestamp</th>
+          <th>Layer</th>
+          <th>Records</th>
+          <th>Duration</th>
+          <th>Quality</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="runTable"></tbody>
+    </table>
+  </div>
+
+  <!-- ── TECH STACK ── -->
+  <div class="sec fade d5">Tech Stack</div>
+  <div class="tech-grid fade d5">
+    <div class="tech-tag"><span style="color:#e25d1e;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span> PySpark 3.5</div>
+    <div class="tech-tag"><span style="color:#fbbf24;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M12 2 2 21h20L12 2Z"/></svg></span> Delta Lake 3.2</div>
+    <div class="tech-tag"><span style="color:#017cee;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg></span> Apache Airflow 2.9</div>
+    <div class="tech-tag"><span style="color:#10b981;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg></span> Great Expectations 1.16</div>
+    <div class="tech-tag"><span style="color:#3b82f6;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></span> Docker Compose</div>
+    <div class="tech-tag"><span style="color:#fde047;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span> Python 3.11</div>
+    <div class="tech-tag"><span style="color:#06b6d4;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span> FastAPI + DuckDB</div>
+    <div class="tech-tag"><span style="color:#61dafb;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="1"/><path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5-2.04 2.03-.02 7.36 4.5 11.9 4.54 4.52 9.87 6.54 11.9 4.5Z"/><path d="M15.7 15.7c4.52-4.54 6.54-9.87 4.5-11.9-2.03-2.04-7.36-.02-11.9 4.5-4.52 4.54-6.54 9.87-4.5 11.9 2.03 2.04 7.36.02 11.9-4.5Z"/></svg></span> React 18 + Vite</div>
+    <div class="tech-tag"><span style="color:#e6522c;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg></span> Prometheus + Grafana</div>
+    <div class="tech-tag"><span style="color:#a78bfa;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg></span> GitHub Actions CI</div>
+    <div class="tech-tag"><span style="color:#38bdf8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg></span> Java 17 (Spark JVM)</div>
+    <div class="tech-tag"><span style="color:#336791;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg></span> PostgreSQL 16</div>
+  </div>
+
+</main>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="foot-logo">
+    <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+      <rect width="32" height="32" rx="8" fill="#1e40af"/>
+      <polyline points="3,16 7,16 9,10 12,22 14.5,14 17,18 19,12 21,16 29,16"
+        stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <circle cx="19" cy="12" r="2.5" fill="#38bdf8"/>
+    </svg>
+    Rayen Lassoued
+  </div>
+  <div class="foot-links">
+    <a class="foot-link" href="https://github.com/Hamilas/ClaimSight" target="_blank">github.com/Hamilas/ClaimSight</a>
+    <a class="foot-link" href="https://www.linkedin.com/in/lassoued-rayen/" target="_blank">https://www.linkedin.com/in/lassoued-rayen/</a>
+  </div>
+</footer>
+
+<script>
+  // ── Data ──────────────────────────────────────────────────────────────────
+
+  const qualityData = [
+    { layer:'Bronze', dataset:'claims',          checks:12, passed:12 },
+    { layer:'Bronze', dataset:'members',         checks:8,  passed:8  },
+    { layer:'Bronze', dataset:'providers',       checks:9,  passed:9  },
+    { layer:'Silver', dataset:'member_claims',   checks:16, passed:16 },
+    { layer:'Silver', dataset:'quality_metrics', checks:9,  passed:9  },
+    { layer:'Gold',   dataset:'cost_summary',    checks:12, passed:12 },
+    { layer:'Gold',   dataset:'provider_summary',checks:11, passed:11 },
+  ];
+
+  const stageData = [
+    { name:'Bronze Ingestion', duration:'39.1s', records:'5,000',  pct:100, color:'#fbbf24' },
+    { name:'Silver Transform', duration:'51.3s', records:'5,000',  pct:100, color:'#94a3b8' },
+    { name:'Gold Aggregation', duration:'50.2s', records:'5,034',  pct:100, color:'#fde047' },
+    { name:'GX Quality Checks',duration:'—',     records:'77 rules',pct:100, color:'#10b981' },
+  ];
+
+  const runData = [
+    { id:'run_20260629_154042', ts:'2026-06-29 15:38', layer:'all',    records:'5,000', dur:'2m20s', quality:'77/77' },
+    { id:'run_20260628_060000', ts:'2026-06-28 06:00', layer:'all',    records:'5,000', dur:'2m18s', quality:'77/77' },
+    { id:'run_20260627_060000', ts:'2026-06-27 06:00', layer:'silver', records:'5,000', dur:'51.3s', quality:'25/25' },
+    { id:'run_20260626_142200', ts:'2026-06-26 14:22', layer:'bronze', records:'5,000', dur:'39.1s', quality:'N/A'   },
+    { id:'run_20260626_060000', ts:'2026-06-26 06:00', layer:'all',    records:'5,000', dur:'2m15s', quality:'77/77' },
+  ];
+
+  const svcData = [
+    { name:'React Dashboard (nginx)', url:'localhost:8201' },
+    { name:'FastAPI (DuckDB)',         url:'localhost:8200' },
+    { name:'Prometheus',               url:'localhost:9090' },
+    { name:'Grafana',                  url:'localhost:3100' },
+    { name:'Airflow Webserver',        url:'localhost:8080' },
+  ];
+
+  const monthlyData = [
+    { m:'Jan', paid:420, denied:52, pending:38 },
+    { m:'Feb', paid:385, denied:46, pending:42 },
+    { m:'Mar', paid:445, denied:55, pending:35 },
+    { m:'Apr', paid:460, denied:58, pending:44 },
+    { m:'May', paid:430, denied:51, pending:40 },
+    { m:'Jun', paid:410, denied:49, pending:36 },
+  ];
+
+  // ── Sparkline builder ─────────────────────────────────────────────────────
+
+  const sparkDefs = {
+    sp1: { data:[60,68,72,75,70,80,78,85,82,88,90,95], color:'#3b82f6' },
+    sp2: { data:[50,58,54,65,60,70,68,72,74,78,80,84], color:'#06b6d4' },
+    sp3: { data:[95,97,95,98,97,99,98,99,100,99,100,100], color:'#10b981' },
+    sp4: { data:[40,52,48,55,62,58,45,70,65,60,68,75], color:'#ef4444' },
+    sp5: { data:[180,170,175,165,160,155,158,150,145,148,142,140], color:'#f59e0b' },
+  };
+
+  Object.entries(sparkDefs).forEach(([id, def]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const max = Math.max(...def.data);
+    def.data.forEach(v => {
+      const b = document.createElement('div');
+      b.className = 'spark-bar';
+      b.style.background = def.color;
+      b.style.height = Math.max(3, (v/max)*24) + 'px';
+      el.appendChild(b);
+    });
+  });
+
+  // ── Counter animation ────────────────────────────────────────────────────
+
+  document.querySelectorAll('.counter').forEach(el => {
+    const target = parseInt(el.dataset.target);
+    const fmt = el.dataset.fmt;
+    let start = null;
+    function step(ts) {
+      if (!start) start = ts;
+      const p = Math.min((ts - start) / 1600, 1);
+      const ease = 1 - Math.pow(1-p, 3);
+      const v = Math.round(target * ease);
+      el.textContent = fmt === 'comma' ? v.toLocaleString() : v;
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
+
+  // ── Quality table ─────────────────────────────────────────────────────────
+
+  const tb = document.getElementById('qualityTable');
+  qualityData.forEach(r => {
+    const cls = r.layer === 'Bronze' ? 'layer-bronze' : r.layer === 'Silver' ? 'layer-silver' : 'layer-gold';
+    tb.innerHTML += `<tr>
+      <td><span class="layer-pill ${cls}">${r.layer}</span></td>
+      <td style="font-family:monospace;font-size:.78rem;color:#94a3b8;">${r.dataset}</td>
+      <td style="color:var(--muted2);">${r.checks}</td>
+      <td><span class="check-pill check-ok">✓ ${r.passed}/${r.checks}</span></td>
+    </tr>`;
+  });
+
+  // ── Stage health bars ─────────────────────────────────────────────────────
+
+  const sh = document.getElementById('stageHealth');
+  stageData.forEach(s => {
+    sh.innerHTML += `<div class="prog-row">
+      <div class="prog-head">
+        <span class="prog-name">${s.name}</span>
+        <span class="prog-meta">${s.records} · ${s.duration}</span>
+      </div>
+      <div class="prog-track">
+        <div class="prog-fill" style="width:0%;background:${s.color};" data-pct="${s.pct}"></div>
+      </div>
+    </div>`;
+  });
+
+  setTimeout(() => {
+    document.querySelectorAll('.prog-fill').forEach(el => {
+      el.style.width = el.dataset.pct + '%';
+    });
+  }, 200);
+
+  // ── Services ──────────────────────────────────────────────────────────────
+
+  const sv = document.getElementById('services');
+  svcData.forEach(s => {
+    sv.innerHTML += `<div class="svc-row">
+      <div class="svc-name"><span class="svc-dot"></span>${s.name}</div>
+      <span class="svc-url">${s.url}</span>
+    </div>`;
+  });
+
+  // ── Bar chart ─────────────────────────────────────────────────────────────
+
+  const bc = document.getElementById('barChart');
+  const lbl = document.getElementById('barLabels');
+  const maxTotal = Math.max(...monthlyData.map(d => d.paid + d.denied + d.pending));
+
+  monthlyData.forEach(d => {
+    const total = d.paid + d.denied + d.pending;
+    const h = 136;
+    const w = document.createElement('div');
+    w.className = 'bar-wrap';
+    w.innerHTML = `<div class="bar-stack" style="height:${Math.round((total/maxTotal)*h)}px;">
+      <div class="bar" style="height:${Math.round((d.paid/total)*100)}%;background:#3b82f6;"></div>
+      <div class="bar" style="height:${Math.round((d.denied/total)*100)}%;background:#ef4444;"></div>
+      <div class="bar" style="height:${Math.round((d.pending/total)*100)}%;background:#f59e0b;"></div>
+    </div>`;
+    bc.appendChild(w);
+
+    const l = document.createElement('span');
+    l.textContent = d.m;
+    lbl.appendChild(l);
+  });
+
+  // ── Run table ─────────────────────────────────────────────────────────────
+
+  const rt = document.getElementById('runTable');
+  runData.forEach(r => {
+    rt.innerHTML += `<tr>
+      <td style="font-family:monospace;font-size:.75rem;color:#60a5fa;">${r.id}</td>
+      <td style="color:var(--muted2);">${r.ts}</td>
+      <td><span class="run-layer">${r.layer}</span></td>
+      <td style="color:var(--muted2);">${r.records}</td>
+      <td style="color:var(--muted2);">${r.dur}</td>
+      <td style="color:#34d399;font-weight:600;">${r.quality}</td>
+      <td class="run-status-ok">✓ success</td>
+    </tr>`;
+  });
+
+  // ── Fraud simulator ───────────────────────────────────────────────────────
+
+  const SPECIALTY_MEANS = {
+    cardiology:   3200,
+    oncology:     8500,
+    general:       420,
+    orthopedics:  2800,
+    radiology:    1200,
+  };
+
+  const SPECIALTY_SDS = {
+    cardiology:   1100,
+    oncology:     2800,
+    general:       140,
+    orthopedics:   900,
+    radiology:     380,
+  };
+
+  function runSimulation() {
+    const pattern   = document.getElementById('simPattern').value;
+    const amount    = parseFloat(document.getElementById('simAmount').value) || 1000;
+    const window_n  = parseInt(document.getElementById('simWindow').value) || 1;
+    const specialty = document.getElementById('simSpecialty').value;
+    const result    = document.getElementById('simResult');
+
+    result.innerHTML = `<div style="color:var(--muted);font-size:.82rem;letter-spacing:.05em;">Analyzing…</div>`;
+
+    setTimeout(() => {
+      let riskLevel, riskPct, label, details;
+
+      if (pattern === 'duplicate') {
+        if (window_n >= 3)      { riskLevel='high';   riskPct=92; label='FLAGGED'; }
+        else if (window_n === 2){ riskLevel='medium'; riskPct=61; label='REVIEW';  }
+        else                    { riskLevel='low';    riskPct=12; label='CLEAR';   }
+        details = `${window_n} claim(s) for same member + procedure in 7-day window.
+          Threshold: ≥ 2 triggers review, ≥ 3 auto-flags.`;
+      } else if (pattern === 'highvol') {
+        if (window_n >= 20)      { riskLevel='high';   riskPct=97; label='FLAGGED'; }
+        else if (window_n >= 10) { riskLevel='medium'; riskPct=68; label='REVIEW';  }
+        else                     { riskLevel='low';    riskPct=8;  label='CLEAR';   }
+        details = `Provider submitted ${window_n} claim(s) in one day.
+          Critical threshold: 20+ claims/day. Review threshold: 10+.`;
+      } else {
+        const mean = SPECIALTY_MEANS[specialty];
+        const sd   = SPECIALTY_SDS[specialty];
+        const sigma = (amount - mean) / sd;
+        if (sigma > 3)      { riskLevel='high';   riskPct=Math.min(98, Math.round(60 + sigma*8)); label='FLAGGED'; }
+        else if (sigma > 1.5){ riskLevel='medium'; riskPct=Math.round(40 + sigma*12); label='REVIEW';  }
+        else                 { riskLevel='low';    riskPct=Math.max(5, Math.round(sigma*10)); label='CLEAR';   }
+        details = `$${amount.toLocaleString()} vs. ${specialty} mean $${mean.toLocaleString()} ± $${sd.toLocaleString()}.
+          Deviation: ${sigma.toFixed(2)}σ. Threshold: > 3σ.`;
+      }
+
+      result.innerHTML = `
+        <div class="risk-ring ${riskLevel}">
+          <span>${riskPct}%</span>
+          <span class="risk-sub">${label}</span>
+        </div>
+        <div style="font-weight:700;font-size:.88rem;margin-bottom:6px;color:${riskLevel==='high'?'#fca5a5':riskLevel==='medium'?'#fde68a':'#6ee7b7'}">
+          ${riskLevel === 'high' ? 'High Risk, Auto-Flagged' : riskLevel === 'medium' ? 'Medium Risk, Queued for Review' : '✓ Low Risk, Approved'}
+        </div>
+        <div style="font-size:.74rem;color:var(--muted);text-align:center;max-width:260px;line-height:1.5;">${details}</div>
+      `;
+    }, 600);
+  }
+</script>
+
+</body>
+</html>

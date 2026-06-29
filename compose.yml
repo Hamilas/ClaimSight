@@ -1,0 +1,177 @@
+x-airflow-env: &airflow-env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+  AIRFLOW__CORE__FERNET_KEY: "46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLt0nIe2I="
+  AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+  AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+  AIRFLOW__WEBSERVER__SECRET_KEY: "claimsight-dev-secret"
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  PIPELINE_CONFIG: /opt/airflow/pipeline/conf/pipeline.yml
+  JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+  SPARK_LOCAL_IP: "127.0.0.1"
+
+services:
+  # ──────────────────────────── One-shot pipeline runner ───────────────────
+  healthcare-pipeline:
+    build:
+      context: .
+    image: claimsight-pipeline:local
+    container_name: claimsight-pipeline
+    working_dir: /app
+    environment:
+      SPARK_LOCAL_IP: "127.0.0.1"
+      PIPELINE_LAYER: ${PIPELINE_LAYER:-all}
+      PIPELINE_CONFIG: ${PIPELINE_CONFIG:-conf/pipeline.yml}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ./data:/app/data
+    command: python -m healthcare_medallion.pipeline --layer ${PIPELINE_LAYER:-all}
+    profiles: ["pipeline"]
+
+  # ──────────────────────────── Airflow metadata DB ────────────────────────
+  airflow-postgres:
+    image: postgres:16-alpine
+    container_name: claimsight-airflow-db
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────── Airflow init ───────────────────────────────
+  airflow-init:
+    build:
+      context: .
+      dockerfile: airflow/Dockerfile
+    image: claimsight-airflow:local
+    container_name: claimsight-airflow-init
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+    environment:
+      <<: *airflow-env
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - ./data:/opt/airflow/pipeline/data
+    command: >-
+      bash -c "airflow db migrate && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@claimsight.local && echo 'Airflow init done'"
+    restart: on-failure
+
+  # ──────────────────────────── Airflow webserver ──────────────────────────
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: airflow/Dockerfile
+    image: claimsight-airflow:local
+    container_name: claimsight-airflow-web
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+    environment:
+      <<: *airflow-env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - ./data:/opt/airflow/pipeline/data
+    command: airflow webserver
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ──────────────────────────── Airflow scheduler ──────────────────────────
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: airflow/Dockerfile
+    image: claimsight-airflow:local
+    container_name: claimsight-airflow-scheduler
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+    environment:
+      <<: *airflow-env
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - ./data:/opt/airflow/pipeline/data
+    command: airflow scheduler
+    restart: on-failure
+
+  # ──────────────────────────── FastAPI backend ────────────────────────────
+  api:
+    build:
+      context: api
+    container_name: claimsight-api
+    environment:
+      DATA_ROOT: /app/data
+    ports:
+      - "8200:8200"
+    volumes:
+      - ./data:/app/data:ro
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8200/health')"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ──────────────────────────── React frontend ─────────────────────────────
+  frontend:
+    build:
+      context: frontend
+    container_name: claimsight-frontend
+    ports:
+      - "8201:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ──────────────────────────── Prometheus ─────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: claimsight-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.enable-lifecycle"
+
+  # ──────────────────────────── Grafana ────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.2.2
+    container_name: claimsight-grafana
+    ports:
+      - "3100:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/pipeline.json
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+volumes:
+  airflow_pg_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

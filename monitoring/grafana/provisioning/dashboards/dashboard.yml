@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: ClaimSight
+    folder: ClaimSight
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards
